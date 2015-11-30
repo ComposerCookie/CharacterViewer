@@ -1,0 +1,351 @@
+<!doctype html>
+<html>
+<head>
+    <title>Character Viewer</title>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/3.0.7/pixi.js"></script>
+   
+</head>
+<body>
+</body>
+     <script type="text/javascript">
+         var isMale = true;
+         var currentHair = 0;
+         var currentBody = 0;
+         var currentDir = 0;
+         var isRunning = false;
+
+         var currentFrame = 0;
+         var lastUpdate = 0;
+         var lastScroll = 0;
+
+         var maleHairList = [];
+         var femaleHairList = [];
+         var maleBodyList = [];
+         var femaleBodyList = [];
+         
+         var maleHairButtons = [];
+         var maleHairButtons = [];
+
+         var MALE_HAIR_COUNT = 12;
+         var FEMALE_HAIR_COUNT = 0;
+         var MALE_BODY_COUNT = 1;
+         var FEMALE_BODY_COUNT = 1;
+
+         var GFX_PATH = "GFX/";
+         var HAIR_PATH = "Hair/";
+         var BODY_PATH = "Body/";
+         var MALE_PATH = "Male/";
+         var FEMALE_PATH = "Female/";
+         var EXTENSION = ".png";
+
+         var renderer = PIXI.autoDetectRenderer(window.innerWidth - 100, window.innerHeight - 100,{backgroundColor : 0x1099bb});
+         document.body.appendChild(renderer.view);
+
+         var stage = new PIXI.Container();
+         var landCover = new PIXI.Sprite(PIXI.Texture.fromImage(GFX_PATH + "Cover" + EXTENSION));
+         var instruction = new PIXI.Text("Press R to toggle Run, arrow key to change direction", { font : '12px Arial'});
+         var landCenter = new PIXI.Sprite(PIXI.Texture.fromImage(GFX_PATH + "Strip1" + EXTENSION));
+         var landDown = new PIXI.Sprite(PIXI.Texture.fromImage(GFX_PATH + "Strip2" + EXTENSION));
+         var landUp = new PIXI.Sprite(PIXI.Texture.fromImage(GFX_PATH + "Strip3" + EXTENSION));
+         var landLeft = new PIXI.Sprite(PIXI.Texture.fromImage(GFX_PATH + "Strip4" + EXTENSION));
+         var landRight = new PIXI.Sprite(PIXI.Texture.fromImage(GFX_PATH + "Strip5" + EXTENSION));
+         var bodyTexture = new PIXI.Sprite(PIXI.Texture.fromImage(GFX_PATH + BODY_PATH + MALE_PATH + 0 + EXTENSION));
+         var hairTexture = new PIXI.Sprite(PIXI.Texture.fromImage(GFX_PATH + HAIR_PATH + MALE_PATH + 0 + EXTENSION));
+         instruction.position.x = 20;
+         instruction.position.y = 280;
+         landLeft.visible = false;
+         landDown.visible = true;
+         landRight.visible = false;
+         landUp.visible = false;
+         landCenter.position.y = 80;
+         landCenter.position.x = 80;
+         landDown.position.y = 160;
+         landDown.position.x = 80;
+         bodyTexture.position.x = 104;
+         bodyTexture.position.y = 96;
+         hairTexture.position.x = 104;
+         hairTexture.position.y = 96;
+         stage.addChild(landCenter);
+         stage.addChild(landDown);
+         stage.addChild(landUp);
+         stage.addChild(landLeft);
+         stage.addChild(landRight);
+         stage.addChild(bodyTexture);
+         stage.addChild(hairTexture);
+         stage.addChild(landCover);
+         stage.addChild(instruction);
+         
+         window.addEventListener("keyup", onKeyUp, false);
+         function onKeyUp(evt){
+             var keyCode = evt.keyCode;
+            switch(keyCode) {
+                case 37:  // left arrow
+                    changeDir(2);
+                break;
+            case 38:  // up arrow
+                changeDir(3);
+                break;
+            case 39:  // right arrow
+                changeDir(1);
+                break;
+            case 40:  // down arrow
+                changeDir(0);
+                break;
+            case 82:
+                isRunning = !isRunning;
+                break;
+            default:
+            }
+         }
+         
+         function button(value, texture, func) { // in the future also add sprite hover/ sprite down, etc
+             PIXI.Sprite.call(this, texture);
+             this.buttonMode = true;
+             this.interactive = true;
+             this.value = value;
+             this.func = func;
+    
+             this
+                // set the mousedown and touchstart callback...
+                .on('mousedown', this.onButtonDown)
+                .on('touchstart', this.onButtonDown)
+
+                // set the mouseup and touchend callback...
+                .on('mouseup', this.onButtonUp)
+                .on('touchend', this.onButtonUp)
+                .on('mouseupoutside', this.onButtonUp)
+                .on('touchendoutside', this.onButtonUp)
+
+                // set the mouseover callback...
+                .on('mouseover', this.onButtonOver)
+
+                // set the mouseout callback...
+                .on('mouseout', this.onButtonOut);
+
+         }
+         
+         button.prototype = Object.create(PIXI.Sprite.prototype);
+         
+         button.prototype.onButtonDown = function() {
+             this.isdown = true;
+         };
+
+         button.prototype.onButtonUp = function() {
+             this.isdown = false;
+
+             if (this.isOver) {
+                this.func().call(this);
+             } else {
+             }
+         };
+
+         button.prototype.onButtonOver = function() {
+             this.isOver = true;
+
+             if (this.isdown) {
+                return;
+             }
+         };
+
+         button.prototype.onButtonOut = function() {
+             this.isOver = false;
+
+             if (this.isdown) {
+                 return;
+             }
+         };
+         
+         function generateButtons(){
+             var clickedHair = function(){
+                 currentHair = this.value;
+             }
+    
+             for (var i = 0; i < MALE_HAIR_COUNT; i++){
+                 var texture = new PIXI.Texture(maleHairList[i], new PIXI.Rectangle(32, 0, 32, 24));
+                 var malebutton = new button(i, texture, clickedHair);
+                 malebutton.position.x = i % 8 * 32 + 300;
+                 malebutton.position.y = Math.floor(i / 8) * 24 + 50;
+                 stage.addChild(malebutton);
+                 maleHairButtons.push(malebutton);
+             }
+         }
+         
+         function loadImagePath(){
+             for (var i = 0; i < MALE_HAIR_COUNT; i++) {
+                 maleHairList.push(PIXI.BaseTexture.fromImage(GFX_PATH + HAIR_PATH + MALE_PATH + i + EXTENSION));
+             }
+    
+             for (var i = 0; i < FEMALE_HAIR_COUNT; i++) {
+                 femaleHairList.push(PIXI.BaseTexture.fromImage(GFX_PATH + HAIR_PATH + FEMALE_PATH + i + EXTENSION));
+             }
+    
+             for (var i = 0; i < MALE_BODY_COUNT; i++) {
+                 maleBodyList.push(PIXI.BaseTexture.fromImage(GFX_PATH + BODY_PATH + MALE_PATH + i + EXTENSION));
+             }
+    
+             for (var i = 0; i < FEMALE_BODY_COUNT; i++) {
+                 femaleBodyList.push(PIXI.BaseTexture.fromImage(GFX_PATH + BODY_PATH + FEMALE_PATH + i + EXTENSION));
+             }
+         }
+
+         loadImagePath();
+         generateButtons();
+         animate();
+
+         function animate() {
+             var time = Date.now();
+             if (isRunning) {
+                 if (lastUpdate <= time - 150) {
+                     currentFrame++;
+                     if (currentFrame > 5) {
+                         currentFrame = 0;
+                     }
+                     lastUpdate = time;
+                     changeSprite();
+                 }
+             } else {
+                 if (lastUpdate <= Date.now() - 250) {
+                     currentFrame++;
+                     if (currentFrame > 3) {
+                         currentFrame = 0;
+                     }
+                     lastUpdate = time;
+                     changeSprite();
+                 }
+             }
+             
+             scrollBackground();
+    
+             requestAnimationFrame(animate);
+
+             // render the root container
+             renderer.render(stage);
+        }
+
+        function changeSprite() {
+            var bodyArray = (isMale) ? maleBodyList : femaleBodyList;
+            var hairArray = (isMale) ? maleHairList : femaleHairList;
+            var frame = getTextureRect();
+            // NOTE: This is inefficient, creating a new texture every time for each frame is overkill
+            // Generate the series of textures and reuse them.
+            bodyTexture.texture = new PIXI.Texture(bodyArray[currentBody], frame);
+            //hairTexture = new PIXI.Sprite(new PIXI.Texture(hairArray[currentHair], frame));
+            hairTexture.texture = new PIXI.Texture(hairArray[currentHair], frame);
+         }
+
+         function getTextureRect() {
+            var x = (isRunning) ? 96 : 0;
+            var y = currentDir * 32;
+    
+            switch (currentFrame){
+                case 1:
+                    x += 32
+                    break;
+                case 2:
+                    if (isRunning) {
+                    } else {
+                        x += 64
+                    }
+                    break;
+                case 3:
+                    if (isRunning) {
+                        x += 64
+                    } else {
+                        x += 32;
+                    }
+                    break;
+                case 4:
+                    x += 96
+                    break;
+                case 5:
+                    x += 64
+                    break;
+            }
+    
+            return new PIXI.Rectangle(x, y, 32, 32);
+         }
+         
+         function scrollBackground(){
+             var speed = (isRunning)? 23.4375 : 46.875;
+             var time = Date.now();
+             if (lastScroll <= time - (speed * (isRunning) ? 2 : 1)){
+                 switch (currentDir){
+                     case 0:
+                         landCenter.position.y -= (isRunning) ? 2 : 1;
+                         landDown.position.y -= (isRunning) ? 2 : 1;
+                         if (landCenter.position.y <= - 0){
+                             landCenter.position.y = 160;
+                         }
+                         if (landDown.position.y <= - 0){
+                             landDown.position.y = 160;
+                         }
+                         break;
+                     case 1:
+                         landCenter.position.x -= (isRunning) ? 2 : 1;
+                         landRight.position.x -= (isRunning) ? 2 : 1;
+                         if (landCenter.position.x <= - 0){
+                             landCenter.position.x = 160;
+                         }
+                         if (landRight.position.x <= 0){
+                             landRight.position.x = 160;
+                         }
+                         break;
+                     case 2:
+                         landCenter.position.x += (isRunning) ? 2 : 1;
+                         landLeft.position.x += (isRunning) ? 2 : 1;
+                         if (landCenter.position.x >= 160){
+                             landCenter.position.x = 0;
+                         }
+                         if (landLeft.position.x >= 160){
+                             landLeft.position.x = 0;
+                         }
+                         break;
+                     case 3:
+                         landCenter.position.y += (isRunning) ? 2 : 1;
+                         landUp.position.y += (isRunning) ? 2 : 1;
+                         if (landCenter.position.y >= 160){
+                             landCenter.position.y = 0;
+                         }
+                         if (landUp.position.y >= 160){
+                             landUp.position.y = 0;
+                         }
+                         break;
+                }
+                 lastScroll = time;
+             }
+         }
+         
+         function changeDir(dir){
+            landLeft.visible = false;
+            landDown.visible = false;
+            landRight.visible = false;
+            landUp.visible = false;
+            landCenter.position.y = 80;
+            landCenter.position.x = 80;
+            switch (dir){
+                case 0:
+                    landDown.visible = true;        
+                    landDown.position.y = 160;
+                    landDown.position.x = 80;
+                    break;
+                case 1:
+                    landRight.visible = true;
+                    landRight.position.y = 80;
+                    landRight.position.x = 160;
+                    break;
+                case 2:
+                    landLeft.visible = true;
+                    landLeft.position.y = 80;
+                    landLeft.position.x = 0;
+                    break;
+                case 3:
+                    landUp.visible = true;
+                    landUp.position.y = 0;
+                    landUp.position.x = 80;
+                    break;
+            }
+             currentDir = dir;
+             changeSprite();
+         }
+        </script>
+</html>
